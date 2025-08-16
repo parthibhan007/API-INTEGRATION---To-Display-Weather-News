@@ -129,3 +129,7 @@ Accessibility is also considered:
 The Weather Now — Pro project successfully integrates real-time data, immersive design, and modern web technologies to deliver an engaging weather app experience. It balances simplicity with rich functionality, making it ideal both as a useful daily tool and as a demonstration of full-stack frontend skills.
 
 At its core, the project demonstrates how API-driven applications can transform raw data into intuitive, user-friendly interfaces. This makes it not only a practical application for end-users but also a strong portfolio project that highlights expertise in JavaScript, API integration, UI/UX design, and responsive web development.
+
+
+Output : -
+<img width="1915" height="863" alt="Image" src="https://github.com/user-attachments/assets/b93dd6aa-53d3-4d8b-8859-da5b70ea9c26" />
