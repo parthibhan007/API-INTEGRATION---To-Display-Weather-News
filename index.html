@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Weather Now — Pro</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <!-- Animated background layers -->
+  <div id="bg-gradient"></div>
+  <div id="bg-stars" class="bg-layer hidden"></div>
+  <div id="bg-rain" class="bg-layer hidden"></div>
+  <div id="bg-snow" class="bg-layer hidden"></div>
+  <div id="bg-fog" class="bg-layer hidden"></div>
+  <div id="bg-lightning" class="bg-layer hidden"></div>
+
+  <!-- App container -->
+  <div class="app glass">
+    <header>
+      <h1>🌤️ Weather Now — Pro</h1>
+      <p class="subtitle">Real-time weather with dynamic effects</p>
+    </header>
+
+    <section class="controls">
+      <form id="weatherForm" class="search">
+        <input id="cityInput" type="text" placeholder="Enter city (e.g., Chennai, London)" aria-label="City name"/>
+        <button type="submit" class="btn primary">Get Weather</button>
+      </form>
+      <div class="actions">
+        <button id="currentLocationBtn" class="btn ghost">📍 Use My Location</button>
+        <label class="toggle">
+          <input type="checkbox" id="unitToggle"/>
+          <span>Show in °F</span>
+        </label>
+      </div>
+    </section>
+
+    <section id="chips" class="chips"></section>
+
+    <section id="error" class="error hidden" role="alert"></section>
+
+    <section id="current" class="card hidden">
+      <div class="current-header">
+        <h2 id="location">—</h2>
+        <div id="updatedAt" class="muted">—</div>
+      </div>
+      <div class="current-main">
+        <div class="temp-block">
+          <div id="temperature" class="temp">—</div>
+          <div id="summary" class="summary">—</div>
+        </div>
+        <div class="metrics">
+          <div><span>💨</span> <strong id="wind">—</strong> <small>Wind</small></div>
+          <div><span>🌧️</span> <strong id="precip">—</strong> <small>Precip (24h)</small></div>
+          <div><span>🧭</span> <strong id="direction">—</strong> <small>Wind Dir</small></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="forecast" class="forecast card hidden">
+      <h3>7-Day Forecast</h3>
+      <div id="forecastGrid" class="grid"></div>
+    </section>
+
+    <footer class="muted">
+      <span>Data: Open-Meteo</span>
+    </footer>
+  </div>
+
+  <!-- Loading overlay -->
+  <div id="loading" class="loading hidden">
+    <div class="spinner"></div>
+    <div>Fetching weather…</div>
+  </div>
+
+  <script src="script.js" defer></script>
+</body>
+</html>

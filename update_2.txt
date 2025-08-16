@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Weather Now — Pro</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <!-- Animated background layers -->
+  <div id="bg-gradient"></div>
+  <div id="bg-stars" class="bg-layer hidden"></div>
+  <div id="bg-rain" class="bg-layer hidden"></div>
+  <div id="bg-snow" class="bg-layer hidden"></div>
+  <div id="bg-fog" class="bg-layer hidden"></div>
+  <div id="bg-lightning" class="bg-layer hidden"></div>
+
+  <!-- App container -->
+  <div class="app glass">
+    <header>
+      <h1>🌤️ Weather Now — Pro</h1>
+      <p class="subtitle">Real-time weather with dynamic effects</p>
+    </header>
+
+    <section class="controls">
+      <form id="weatherForm" class="search">
+        <input id="cityInput" type="text" placeholder="Enter city (e.g., Chennai, London)" aria-label="City name"/>
+        <button type="submit" class="btn primary">Get Weather</button>
+      </form>
+      <div class="actions">
+        <button id="currentLocationBtn" class="btn ghost">📍 Use My Location</button>
+        <label class="toggle">
+          <input type="checkbox" id="unitToggle"/>
+          <span>Show in °F</span>
+        </label>
+      </div>
+    </section>
+
+    <section id="chips" class="chips"></section>
+
+    <section id="error" class="error hidden" role="alert"></section>
+
+    <section id="current" class="card hidden">
+      <div class="current-header">
+        <h2 id="location">—</h2>
+        <div id="updatedAt" class="muted">—</div>
+      </div>
+      <div class="current-main">
+        <div class="temp-block">
+          <div id="temperature" class="temp">—</div>
+          <div id="summary" class="summary">—</div>
+        </div>
+        <div class="metrics">
+          <div><span>💨</span> <strong id="wind">—</strong> <small>Wind</small></div>
+          <div><span>🌧️</span> <strong id="precip">—</strong> <small>Precip (24h)</small></div>
+          <div><span>🧭</span> <strong id="direction">—</strong> <small>Wind Dir</small></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="forecast" class="forecast card hidden">
+      <h3>7-Day Forecast</h3>
+      <div id="forecastGrid" class="grid"></div>
+    </section>
+
+    <footer class="muted">
+      <span>Data: Open-Meteo</span>
+    </footer>
+  </div>
+
+  <!-- Loading overlay -->
+  <div id="loading" class="loading hidden">
+    <div class="spinner"></div>
+    <div>Fetching weather…</div>
+  </div>
+
+  <script src="script.js" defer></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ---------- Base ---------- */
+:root{
+  --glass-bg: rgba(255,255,255,0.16);
+  --glass-bd: rgba(255,255,255,0.25);
+  --text: #0f172a;
+  --muted: #334155;
+  --accent: #2563eb;
+  --good: #10b981;
+  --bad: #ef4444;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+  color:var(--text);
+  overflow-x:hidden;
+}
+
+/* ---------- Animated backgrounds ---------- */
+#bg-gradient{
+  position:fixed; inset:0;
+  background: linear-gradient(120deg,#79c2ff,#a8c0ff 40%, #fbc2eb);
+  transition: background 600ms ease-in-out, filter 600ms;
+  z-index:-5;
+}
+.bg-layer{
+  position:fixed; inset:0; pointer-events:none; z-index:-4;
+}
+
+/* Stars (clear night) */
+#bg-stars::before{
+  content:"";
+  position:absolute; inset:0;
+  background:
+    radial-gradient(2px 2px at 20% 30%, #fff 60%, transparent 61%),
+    radial-gradient(2px 2px at 80% 20%, #fff 60%, transparent 61%),
+    radial-gradient(2px 2px at 60% 60%, #fff 60%, transparent 61%),
+    radial-gradient(1.5px 1.5px at 40% 80%, #fff 60%, transparent 61%),
+    radial-gradient(1.5px 1.5px at 70% 70%, #fff 60%, transparent 61%);
+  animation: twinkle 4s infinite ease-in-out;
+  opacity:.8;
+}
+@keyframes twinkle{
+  0%,100%{opacity:.6}
+  50%{opacity:1}
+}
+
+/* Rain */
+#bg-rain{
+  --drop: rgba(255,255,255,.7);
+  background-image: repeating-linear-gradient(
+    -20deg,
+    transparent 0 12px,
+    rgba(255,255,255,.02) 12px 24px
+  );
+}
+#bg-rain::before{
+  content:"";
+  position:absolute; inset:-20% -20% -20% -20%;
+  background-image: linear-gradient(to bottom, var(--drop) 0 60%, transparent 60% 100%);
+  background-size: 2px 18px;
+  animation: rain 600ms linear infinite;
+  opacity:.25;
+}
+@keyframes rain{
+  from{transform:translateY(-18px)}
+  to{transform:translateY(18px)}
+}
+
+/* Snow */
+#bg-snow{
+  overflow:hidden;
+}
+#bg-snow .flake{
+  position:absolute; top:-10px;
+  width:8px; height:8px; border-radius:50%;
+  background:rgba(255,255,255,.9);
+  filter: blur(.5px);
+  animation: snow 7s linear infinite;
+}
+@keyframes snow{
+  from{transform:translateY(-5vh)}
+  to{transform:translateY(110vh)}
+}
+
+/* Fog */
+#bg-fog::before{
+  content:"";
+  position:absolute; inset:-10% -10% -10% -10%;
+  background: radial-gradient(ellipse at 50% 60%, rgba(255,255,255,.35), rgba(255,255,255,.0) 60%);
+  filter: blur(10px);
+  animation: fog 10s ease-in-out infinite alternate;
+}
+@keyframes fog{
+  from{transform:translateX(-3%)}
+  to{transform:translateX(3%)}
+}
+
+/* Lightning */
+#bg-lightning{
+  background:transparent;
+}
+#bg-lightning.flash{
+  animation: flash 1.4s infinite;
+}
+@keyframes flash{
+  0%, 92%, 100%{ background:transparent }
+  94%{ background: rgba(255,255,255,.55) }
+  96%{ background:transparent }
+}
+
+/* ---------- Glass App ---------- */
+.app{
+  position:relative;
+  width:min(920px, 92vw);
+  margin: clamp(24px, 6vh, 56px) auto;
+  padding: 24px;
+  border-radius: 20px;
+}
+.glass{
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-bd);
+  backdrop-filter: blur(10px) saturate(140%);
+  box-shadow: 0 12px 30px rgba(0,0,0,.15);
+}
+
+header h1{ margin:0 0 4px}
+.subtitle{ margin:0; color:var(--muted)}
+
+/* ---------- Controls ---------- */
+.controls{ display:grid; gap:12px; margin-top:16px}
+.search{ display:flex; gap:10px}
+.search input{
+  flex:1; padding:12px 14px; border-radius:12px; border:1px solid #e2e8f0;
+  background:rgba(255,255,255,.85); outline:none; font-size:16px;
+}
+.btn{
+  padding:12px 14px; border-radius:12px; border:1px solid transparent;
+  cursor:pointer; font-weight:600;
+}
+.btn.primary{ background:var(--accent); color:#fff}
+.btn.ghost{ background:rgba(255,255,255,.7); border-color:#e2e8f0}
+.btn:hover{ filter:brightness(.97)}
+.actions{ display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+.toggle{ display:flex; align-items:center; gap:8px; user-select:none}
+
+/* ---------- Chips ---------- */
+.chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px}
+.chip{
+  padding:6px 10px; border-radius:999px; background:rgba(255,255,255,.7);
+  border:1px solid #e5e7eb; font-size:14px; cursor:pointer;
+}
+
+/* ---------- Cards ---------- */
+.card{
+  margin-top:16px; padding:16px; border-radius:16px; background:rgba(255,255,255,.85);
+  border:1px solid #e2e8f0;
+  animation: fadeIn .4s ease;
+}
+@keyframes fadeIn{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:translateY(0)}}
+
+.current-header{ display:flex; justify-content:space-between; align-items:center; gap:10px}
+.muted{ color:var(--muted); font-size:14px}
+.current-main{
+  display:grid; grid-template-columns: 1fr auto; align-items:center; gap:18px; margin-top:12px;
+}
+.temp{ font-size:56px; font-weight:800}
+.summary{ font-size:18px; color:#334155; margin-top:4px}
+.metrics{ display:flex; gap:16px; flex-wrap:wrap}
+.metrics div{ background:#f8fafc; padding:10px 12px; border-radius:12px; border:1px solid #e2e8f0}
+
+/* ---------- Forecast ---------- */
+.forecast h3{ margin: 0 0 10px}
+.grid{
+  display:grid;
+  grid-template-columns: repeat(7, minmax(0,1fr));
+  gap:10px;
+}
+.day{
+  background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:10px;
+  display:grid; place-items:center; gap:6px;
+}
+.day .icon{ font-size:24px}
+.day .t{ font-weight:700}
+.day small{ color:var(--muted)}
+
+/* ---------- Error ---------- */
+.error{
+  background:rgba(255, 241, 242, .9); border:1px solid #fecdd3; color:#991b1b;
+  padding:10px 12px; border-radius:12px;
+}
+
+/* ---------- Loading Overlay ---------- */
+.loading{
+  position:fixed; inset:0; display:grid; place-items:center;
+  background:rgba(255,255,255,.55); backdrop-filter: blur(3px);
+  z-index: 20;
+}
+.spinner{
+  width:42px; height:42px; border:4px solid #cbd5e1; border-top-color: var(--accent);
+  border-radius:50%; animation: spin 1s linear infinite; margin-bottom:10px;
+}
+@keyframes spin{to{ transform:rotate(360deg)}}
+
+/* ---------- Utils ---------- */
+.hidden{ display:none !important}
+@media (max-width: 720px){
+  .current-main{ grid-template-columns: 1fr}
+  .grid{ grid-template-columns: repeat(3, 1fr)}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* =========================
+   Weather Now — Pro (No API keys needed)
+   Uses Open-Meteo for forecast + geocoding + reverse geocoding
+   ========================= */
+
+const els = {
+  form: document.getElementById("weatherForm"),
+  cityInput: document.getElementById("cityInput"),
+  locBtn: document.getElementById("currentLocationBtn"),
+  unitToggle: document.getElementById("unitToggle"),
+  chips: document.getElementById("chips"),
+  error: document.getElementById("error"),
+  loading: document.getElementById("loading"),
+
+  currentCard: document.getElementById("current"),
+  location: document.getElementById("location"),
+  updatedAt: document.getElementById("updatedAt"),
+  temperature: document.getElementById("temperature"),
+  summary: document.getElementById("summary"),
+  wind: document.getElementById("wind"),
+  precip: document.getElementById("precip"),
+  direction: document.getElementById("direction"),
+
+  forecastCard: document.getElementById("forecast"),
+  forecastGrid: document.getElementById("forecastGrid"),
+
+  bg: {
+    gradient: document.getElementById("bg-gradient"),
+    stars: document.getElementById("bg-stars"),
+    rain: document.getElementById("bg-rain"),
+    snow: document.getElementById("bg-snow"),
+    fog: document.getElementById("bg-fog"),
+    lightning: document.getElementById("bg-lightning"),
+  }
+};
+
+let unit = "C";         // "C" or "F"
+let lastCelsius = null; // remember current temp in °C for toggle
+
+/* ---------- Helpers ---------- */
+const show = el => el.classList.remove("hidden");
+const hide = el => el.classList.add("hidden");
+
+function setError(msg){
+  els.error.textContent = msg;
+  if (msg) show(els.error); else hide(els.error);
+}
+
+function setLoading(on){
+  if (on) show(els.loading); else hide(els.loading);
+}
+
+function toF(c){ return (c * 9/5) + 32; }
+function fmtTemp(c){
+  const v = (unit === "F") ? toF(c) : c;
+  return `${v.toFixed(1)}°${unit}`;
+}
+function degToCompass(deg){
+  const dirs = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+  return dirs[Math.round(deg/22.5) % 16];
+}
+
+/* Open-Meteo weather codes → label/emoji and theme group */
+const WEATHER = {
+  group(code){
+    // return one of: "clear","clouds","rain","snow","fog","thunder"
+    if (code === 0) return "clear";
+    if ([1,2,3].includes(code)) return "clouds";
+    if ([45,48].includes(code)) return "fog";
+    if ([51,53,55,56,57,61,63,65,66,67,80,81,82].includes(code)) return "rain";
+    if ([71,73,75,77,85,86].includes(code)) return "snow";
+    if ([95,96,99].includes(code)) return "thunder";
+    return "clouds";
+  },
+  label(code){
+    const map = {
+      0:"Clear sky",1:"Mainly clear",2:"Partly cloudy",3:"Overcast",
+      45:"Fog",48:"Depositing rime fog",
+      51:"Light drizzle",53:"Drizzle",55:"Heavy drizzle",
+      56:"Freezing drizzle",57:"Freezing drizzle",
+      61:"Light rain",63:"Rain",65:"Heavy rain",
+      66:"Freezing rain",67:"Freezing rain",
+      71:"Light snow",73:"Snow",75:"Heavy snow",
+      77:"Snow grains",
+      80:"Rain showers",81:"Rain showers",82:"Violent rain showers",
+      85:"Snow showers",86:"Heavy snow showers",
+      95:"Thunderstorm",96:"Thunder w/ hail",99:"Thunder w/ heavy hail"
+    };
+    return map[code] || "—";
+  },
+  emoji(code){
+    const g = WEATHER.group(code);
+    return {clear:☀️", clouds:"⛅", rain:"🌧️", snow:"❄️", fog:"🌫️", thunder:"⛈️"}[g] || "🌤️";
+  }
+};
+
+/* ---------- Background themes & effects ---------- */
+function setThemeByCode(code){
+  const g = WEATHER.group(code);
+
+  // reset layers
+  [els.bg.stars, els.bg.rain, els.bg.snow, els.bg.fog, els.bg.lightning].forEach(hide);
+  els.bg.lightning.classList.remove("flash");
+
+  // gradient palette
+  const palettes = {
+    clear: "linear-gradient(120deg, #78ffd6, #a8ff78)",
+    clouds: "linear-gradient(120deg, #cfd9df, #e2ebf0)",
+    rain: "linear-gradient(120deg, #4b79a1, #283e51)",
+    thunder: "linear-gradient(120deg, #414345, #232526)",
+    snow: "linear-gradient(120deg, #e0eaef, #cfe3ff)",
+    fog: "linear-gradient(120deg, #d7d2cc, #304352)"
+  };
+  els.bg.gradient.style.background = palettes[g];
+
+  // effects
+  if (g === "clear"){
+    // show stars only at night (heuristic: if current local time hour outside 6–18, else nothing)
+    const hour = new Date().getHours();
+    if (hour < 6 || hour >= 19) show(els.bg.stars);
+  }
+  if (g === "clouds"){
+    // subtle nothing (gradient handles mood)
+  }
+  if (g === "rain"){
+    show(els.bg.rain);
+  }
+  if (g === "snow"){
+    show(els.bg.snow);
+    seedSnowflakes();
+  }
+  if (g === "fog"){
+    show(els.bg.fog);
+  }
+  if (g === "thunder"){
+    show(els.bg.rain);
+    show(els.bg.lightning);
+    els.bg.lightning.classList.add("flash");
+  }
+}
+
+/* create a few snowflakes each time */
+function seedSnowflakes(){
+  const layer = els.bg.snow;
+  layer.innerHTML = ""; // reset
+  const count = 40;
+  for (let i=0;i<count;i++){
+    const f = document.createElement("div");
+    f.className = "flake";
+    const size = 6 + Math.random()*6;
+    f.style.width = f.style.height = `${size}px`;
+    f.style.left = `${Math.random()*100}%`;
+    f.style.animationDuration = `${6 + Math.random()*6}s`;
+    f.style.animationDelay = `${Math.random()*4}s`;
+    layer.appendChild(f);
+  }
+}
+
+/* ---------- Search history chips ---------- */
+function saveHistory(label){
+  const key = "weather.history";
+  const arr = JSON.parse(localStorage.getItem(key) || "[]");
+  if (!arr.includes(label)){
+    arr.unshift(label);
+    if (arr.length > 8) arr.pop();
+    localStorage.setItem(key, JSON.stringify(arr));
+  }
+  renderChips();
+}
+function renderChips(){
+  const key = "weather.history";
+  const arr = JSON.parse(localStorage.getItem(key) || "[]");
+  els.chips.innerHTML = "";
+  arr.forEach(lab => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "chip";
+    chip.textContent = lab;
+    chip.addEventListener("click", () => searchCity(lab));
+    els.chips.appendChild(chip);
+  });
+}
+
+/* ---------- Open-Meteo API calls ---------- */
+// Name → coordinates
+async function geocodeCity(name){
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1&language=en&format=json`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to geocode city.");
+  const data = await res.json();
+  if (!data.results || data.results.length === 0) throw new Error("City not found.");
+  return data.results[0]; // {latitude, longitude, name, country, timezone}
+}
+
+// coordinates → nearest city name (reverse geocode)
+async function reverseGeocode(lat, lon){
+  const url = `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&language=en&format=json`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to reverse geocode.");
+  const data = await res.json();
+  if (!data.results || data.results.length === 0) return null;
+  return data.results[0]; // {name, country, ...}
+}
+
+// Main weather call
+async function fetchWeather(lat, lon, tz="auto"){
+  // current_weather + daily metrics (7 days)
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+              `&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,winddirection_10m_dominant` +
+              `&timezone=${encodeURIComponent(tz)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to fetch weather.");
+  return res.json();
+}
+
+/* ---------- Renderers ---------- */
+function renderCurrent(nameCountry, data){
+  const cur = data.current_weather;
+  const daily = data.daily;
+
+  lastCelsius = cur.temperature;
+  els.temperature.textContent = fmtTemp(cur.temperature);
+  els.summary.textContent = `${WEATHER.emoji(cur.weathercode)} ${WEATHER.label(cur.weathercode)}`;
+  els.location.textContent = nameCountry;
+  els.updatedAt.textContent = `Updated: ${new Date(data.current_weather.time).toLocaleString()}`;
+  els.wind.textContent = `${cur.windspeed} km/h`;
+  const wdir = daily?.winddirection_10m_dominant?.[0];
+  els.direction.textContent = (typeof wdir === "number") ? `${degToCompass(wdir)} (${Math.round(wdir)}°)` : "—";
+  els.precip.textContent = (daily?.precipitation_sum?.[0] ?? 0) + " mm";
+
+  setThemeByCode(cur.weathercode);
+
+  show(els.currentCard);
+}
+
+function renderForecast(data){
+  const d = data.daily;
+  const n = d.time.length;
+  els.forecastGrid.innerHTML = "";
+  for (let i=0; i<n; i++){
+    const code = d.weathercode[i];
+    const maxC = d.temperature_2m_max[i];
+    const minC = d.temperature_2m_min[i];
+    const dayEl = document.createElement("div");
+    dayEl.className = "day";
+    const dateLabel = new Date(d.time[i]).toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric" });
+    const icon = WEATHER.emoji(code);
+    const max = (unit === "F") ? toF(maxC).toFixed(0) + "°F" : Math.round(maxC) + "°C";
+    const min = (unit === "F") ? toF(minC).toFixed(0) + "°F" : Math.round(minC) + "°C";
+    const p = (d.precipitation_sum?.[i] ?? 0) + " mm";
+
+    dayEl.innerHTML = `
+      <div class="icon">${icon}</div>
+      <div class="t">${max} / ${min}</div>
+      <small>${dateLabel}</small>
+      <small>${WEATHER.label(code)}</small>
+      <small>💧 ${p}</small>
+    `;
+    els.forecastGrid.appendChild(dayEl);
+  }
+  show(els.forecastCard);
+}
+
+/* ---------- Controllers ---------- */
+async function searchCity(query){
+  try{
+    setError(""); setLoading(true);
+    const place = await geocodeCity(query);
+    const data = await fetchWeather(place.latitude, place.longitude, place.timezone || "auto");
+    const nameCountry = `${place.name}, ${place.country || ""}`.trim();
+    renderCurrent(nameCountry, data);
+    renderForecast(data);
+    saveHistory(nameCountry);
+  }catch(err){
+    setError(err.message || "Something went wrong.");
+  }finally{
+    setLoading(false);
+  }
+}
+
+async function useMyLocation(){
+  if (!navigator.geolocation){
+    setError("Geolocation is not supported on this device.");
+    return;
+  }
+  setError(""); setLoading(true);
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    try{
+      const { latitude: lat, longitude: lon } = pos.coords;
+      const place = await reverseGeocode(lat, lon);
+      const data = await fetchWeather(lat, lon, "auto");
+      const nameCountry = place ? `${place.name}, ${place.country || ""}`.trim() : `Lat ${lat.toFixed(2)}, Lon ${lon.toFixed(2)}`;
+      renderCurrent(nameCountry, data);
+      renderForecast(data);
+      saveHistory(nameCountry);
+    }catch(err){
+      setError(err.message || "Unable to fetch your location weather.");
+    }finally{
+      setLoading(false);
+    }
+  }, err=>{
+    setLoading(false);
+    setError("Location permission denied. You can still search by city.");
+  }, { enableHighAccuracy:false, timeout:10000, maximumAge:300000 });
+}
+
+/* ---------- Events ---------- */
+els.form.addEventListener("submit", e=>{
+  e.preventDefault();
+  const q = els.cityInput.value.trim();
+  if (!q) { setError("Please enter a city name."); return; }
+  searchCity(q);
+});
+
+els.locBtn.addEventListener("click", useMyLocation);
+
+els.unitToggle.addEventListener("change", ()=>{
+  unit = els.unitToggle.checked ? "F" : "C";
+  // re-render temps if we already have data
+  if (lastCelsius !== null){
+    els.temperature.textContent = fmtTemp(lastCelsius);
+    // also re-render forecast cards
+    const lastLocation = els.location.textContent;
+    if (lastLocation && lastLocation !== "—"){
+      // Quick re-request to get accurate rounding across grid
+      // (could also convert values already in DOM, but this is simpler)
+      // Try to parse location back to city; if it contains "Lat", skip
+      if (!/^Lat /.test(lastLocation)){
+        searchCity(lastLocation);
+      }
+    }
+  }
+});
+
+/* ---------- Init ---------- */
+renderChips();
+// Try auto location on first load (optional; comment this out if you don't want it)
+useMyLocation();
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Now</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🌤 Weather Now</h1>
+        <form id="weatherForm">
+            <input type="text" id="cityInput" placeholder="Enter city name" required>
+            <button type="submit">Get Weather</button>
+        </form>
+        <div id="weatherResult" class="weather-card hidden">
+            <h2 id="location"></h2>
+            <p><strong>Temperature:</strong> <span id="temperature"></span>°C</p>
+            <p><strong>Wind Speed:</strong> <span id="wind"></span> km/h</p>
+            <p><strong>Precipitation:</strong> <span id="precipitation"></span> mm</p>
+        </div>
+        <p id="error" class="error hidden"></p>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+css
+
+
+
+
+body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(to right, #56ccf2, #2f80ed);
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.container {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+form {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+}
+
+button {
+    padding: 10px 15px;
+    background: #2f80ed;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #1c5ec2;
+}
+
+.weather-card {
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 10px;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+.error {
+    color: red;
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+.hidden {
+    display: none;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 500px) {
+    form {
+        flex-direction: column;
+    }
+    button {
+        width: 100%;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+script
+
+
+
+document.addEventListener("DOMContentLoaded", () => {
+    const form = document.getElementById("weatherForm");
+    const cityInput = document.getElementById("cityInput");
+    const weatherCard = document.getElementById("weatherResult");
+    const errorMsg = document.getElementById("error");
+
+    form.addEventListener("submit", async function (event) {
+        event.preventDefault(); // stop form from reloading the page
+
+        const city = cityInput.value.trim();
+        if (!city) {
+            errorMsg.textContent = "Please enter a city name.";
+            errorMsg.classList.remove("hidden");
+            weatherCard.classList.add("hidden");
+            return;
+        }
+
+        // hide previous results and error messages
+        weatherCard.classList.add("hidden");
+        errorMsg.classList.add("hidden");
+
+        try {
+            // 1️⃣ Get coordinates from geocoding API
+            const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`);
+            if (!geoRes.ok) throw new Error("Error fetching location data");
+
+            const geoData = await geoRes.json();
+            if (!geoData.results || geoData.results.length === 0) {
+                throw new Error("City not found. Please enter a valid city name.");
+            }
+
+            const { latitude, longitude, name, country } = geoData.results[0];
+
+            // 2️⃣ Get weather data
+            const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&daily=precipitation_sum&timezone=auto`);
+            if (!weatherRes.ok) throw new Error("Error fetching weather data");
+
+            const weatherData = await weatherRes.json();
+
+            const temp = weatherData.current_weather.temperature;
+            const wind = weatherData.current_weather.windspeed;
+            const precipitation = weatherData.daily.precipitation_sum[0];
+
+            // 3️⃣ Display the results
+            document.getElementById("location").textContent = `${name}, ${country}`;
+            document.getElementById("temperature").textContent = temp;
+            document.getElementById("wind").textContent = wind;
+            document.getElementById("precipitation").textContent = precipitation;
+
+            weatherCard.classList.remove("hidden");
+
+        } catch (error) {
+            errorMsg.textContent = error.message;
+            errorMsg.classList.remove("hidden");
+        }
+    });
+});
